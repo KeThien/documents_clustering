@@ -1,0 +1,6 @@
+*.parquet
+*.pickle
+*.pkl
+.vscode
+dask-worker-space
+*.pyc
