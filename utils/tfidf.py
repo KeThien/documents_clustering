@@ -10,6 +10,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 @delayed
 def tfIdf_calculation(corpus):
     ''' function to calculate TF-IDF from list of strings and return a DataFrame'''
+    print('TF-IDF calculation...')
     vectorizer=TfidfVectorizer(
         use_idf = True, 
         smooth_idf = True,

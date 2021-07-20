@@ -45,40 +45,39 @@ def openTsvXZ(file:str, columns:list):
     ddf = ddf.repartition(npartitions=4) # partitions in chunk with Dask for better memory
     return ddf
 
-def create_parquet_from_df(df, file_name:str) -> None:
-    print(f'\n Creating {file_name} parquet file...')
-    parquet = df.to_parquet(f'{dir_path}/data/{file_name}.parquet').compute()
+def create_parquet_from_df(df, parquet_file_name:str) -> None:
+    print(f'\nCreating {parquet_file_name} parquet file...')
+    parquet = df.to_parquet(f'{dir_path}/data/{parquet_file_name}.parquet', engine='pyarrow').compute()
     progress(parquet)
-
-def process_tfidf_dataframe_to_parquet(parquet_file_name: str, n_take=False) -> None:
-    '''Create a Dataframe from in.tsv.xz
-    process to stemming and TF-IDF then save it to parquet file'''
-    
-    if not check_if_file_exists(f'{parquet_file_name}.parquet'):
-        columns_for_df = ['filename', 'keys', 'text_djvu', 'text_tesseract', 'text_textract', 'text_best']
-        df = openTsvXZ(f'{dir_path}/data/in.tsv.xz', columns_for_df)
-        corpus = df['text_best'].to_bag().take(n_take) if n_take else df['text_best'].to_bag()
-        print('------------------Creating dataframe and tf-idf it------------------------')
-        corpus = process_corpus(corpus, 'english')
-        result = corpus.persist()
-        progress(result)
-        result = [x.compute() for x in result.compute()]
-        df = tfIdf_calculation(result)
-        progress(df.persist())
-        create_parquet_from_df(df, parquet_file_name)
-    else:
-        print(f'\n{parquet_file_name} already exists')
 
 def read_parquet_to_df(parquet_file_name: str):
     '''Read parquet file to a DataFrame'''
     if check_if_file_exists(f'{parquet_file_name}.parquet'):
         print(f'Reading from {parquet_file_name} file...')
-        df = dd.read_parquet(f'{dir_path}/data/{parquet_file_name}.parquet')
-        progress(df.persist())
+        df = dd.read_parquet(f'{dir_path}/data/{parquet_file_name}.parquet', engine='pyarrow')
         return df
     else:
         print(f'{parquet_file_name} does not exist')
 
+def process_tfidf_dataframe_to_parquet(parquet_file_name: str, n_take=False) -> None:
+    '''Create a Dataframe from in.tsv.xz
+    process to stemming and TF-IDF then save it to parquet file'''
+    
+    if not check_if_file_exists(f'{parquet_file_name}_{n_take}.parquet'):
+        columns_for_df = ['filename', 'keys', 'text_djvu', 'text_tesseract', 'text_textract', 'text_best']
+        df = openTsvXZ(f'{dir_path}/data/in.tsv.xz', columns_for_df)
+        corpus = df['text_best'].to_bag().take(n_take) if n_take else df['text_best'].to_bag()
+        print('--------------Creating dataframe and tf-idf it------------------')
+        corpus = process_corpus(corpus, 'english')
+        result = corpus.persist()
+        progress(result)
+        result = [x.compute() for x in result.compute()]
+        print(result)
+        df = tfIdf_calculation(result)
+        # progress(df.persist())
+        progress(create_parquet_from_df(df.persist(), parquet_file_name))
+    else:
+        print(f'\n{parquet_file_name} already exists')
 
 def get_top_features_cluster(tf_idf_array, prediction, n_feats:int):
     print(prediction)
@@ -103,17 +102,17 @@ def plotWords(dfs, n_feats:int) -> None:
         plt.savefig(f'plot_most_common_words_in_cluster{i}.png')
 
 if __name__ == '__main__':
-    client = Client(n_workers=4, processes=False)  
-    parquet_file_name = 'mon_big_parquet'
+    client = Client(n_workers=4,threads_per_worker=1, processes=False)  
+    parquet_file_name = 'my_parquet_10'
+    n_take = 10
     
     if not check_if_file_exists(f'{parquet_file_name}.parquet'):
-        process_tfidf_dataframe_to_parquet(parquet_file_name, 10)
+        process_tfidf_dataframe_to_parquet(parquet_file_name, n_take if n_take > 0 else '')
         
-    # df = read_parquet_to_df(parquet_file_name)
+    df = read_parquet_to_df(parquet_file_name)
     
-    
-    # print(f"\n{df.shape[0].compute()} rows")
-    # print(df.compute().T.nlargest(5, 0))
+    print(f"\n{df.shape[0].compute()} rows")
+    print(df.compute().T.nlargest(5, 0))
     
     
     # k = 5
