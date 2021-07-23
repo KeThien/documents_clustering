@@ -39,15 +39,9 @@ def process_tfidf_dataframe_to_parquet(parquet_file_name: str, n_take=False) -> 
 if __name__ == '__main__':
     client = Client(n_workers=4,threads_per_worker=1, processes=False)  
     prefix_file_name = 'training_dataset'
-    n_take = 5 # number of files to read, 0 = all
+    n_take = 0 # number of files to read, 0 = all
     parquet_file_name = f"{dir_path}/data/{prefix_file_name}_{n_take if n_take > 0 else ''}.parquet"
     
-    if not check_if_file_exists(parquet_file_name):
-        process_tfidf_dataframe_to_parquet(parquet_file_name, n_take)
-    else:
-        df = read_parquet_to_df(parquet_file_name)
-    
-        print(f"\n{df.shape[0].compute()} rows")
-        # print(df.compute().T.nlargest(5, 0))
-    
+    process_tfidf_dataframe_to_parquet(parquet_file_name, n_take)
+
     client.close()

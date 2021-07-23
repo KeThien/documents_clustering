@@ -47,22 +47,31 @@ def plotWords(dfs, n_feats:int) -> None:
     for i in range(0, len(dfs)):
         plt.title(("Most Common Words in Cluster {}".format(i)), fontsize=10, fontweight='bold')
         sns.barplot(x = 'score' , y = 'features', orient = 'h' , data = dfs[i][:n_feats])
-        plt.savefig(f'plot_most_common_words_in_cluster{i}.png')
+        plt.savefig(f'{dir_path}/data/analysis/plot_most_common_words_in_cluster{i}.png')
+
+def run_kmeans_then_pickle(df: dd.DataFrame, k: int = 5) -> KMeans:
+    '''function to run kmeans save in pickle and return it
+    :param df: dataframe to run kmeans on
+    :param k: number of clusters
+    return: KMeans object
+    '''
+    kmeans = KMeans(n_clusters=k, init='k-means++', random_state=42)
+    kmeans.fit(df)
+    pickle.dump(kmeans, open(f"{dir_path}/data/kmeans_{k}.pickle", "wb")) # Save model in pickle file
+    return kmeans
 
 if __name__ == '__main__':
     client = Client(n_workers=4,threads_per_worker=1, processes=False)
     
-    df = read_parquet_to_df(f"{dir_path}/data/training_dataset_5.parquet")
+    df = read_parquet_to_df(f"{dir_path}/data/training_dataset_.parquet")
     
     print(f"\n{df.shape[0].compute()} rows")
     print(df.compute().T.nlargest(5, 0))
     
-    # k = 5
-    # kmeans = KMeans(n_clusters=k)
-    # kmeans.fit(df.compute())
-    # pickle.dump(kmeans, open(f"{dir_path}/data/kmeans.pickle", "wb")) # Save model in pickle file
+    k = 3
+    run_kmeans_then_pickle(df, k)
     
-    kmeans = pickle.load(open(f"{dir_path}/data/kmeans.pickle", "rb"))
+    kmeans = pickle.load(open(f"{dir_path}/data/kmeans_{k}.pickle", "rb"))
     
     final_df_array = df.compute().to_numpy()
     prediction = kmeans.predict(df.compute())

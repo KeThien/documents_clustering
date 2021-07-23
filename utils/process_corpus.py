@@ -28,13 +28,17 @@ def apply_stemming(listOfTokens, stemmer):
 def two_letters(listOfTokens):
     twoLetterWord = []
     for token in listOfTokens:
-        if len(token) <= 2 or len(token) >= 21:
+        if len(token) <= 3 or len(token) >= 21:
             twoLetterWord.append(token)
     return twoLetterWord
+
+is_noun = lambda pos: pos[:2] == 'NN'
 
 @delayed
 def process_one_entry_corpus(entry, language):
     '''function to procss text into list of token word'''
+    words = set(nltk.corpus.words.words())
+    
     stopwords = nltk.corpus.stopwords.words(language)
     param_lemmatizer = WordNetLemmatizer()
     param_stemmer = SnowballStemmer(language)
@@ -46,27 +50,31 @@ def process_one_entry_corpus(entry, language):
     entry = entry.rstrip('\n')              # Removes line breaks
     entry = entry.casefold()                # Makes all letters lowercase
     
-    entry = re.sub(',', ' ', entry)         # Removes commas
+    entry = re.sub(',|\'', ' ', entry)      # Removes commas and apostrophes
     entry = re.sub(r'\\n',' ', entry)       # Removes line breaks
     entry = re.sub(r'\\t',' ', entry)       # Removes tabs
-    entry = re.sub('_+','', entry)          # Removes tabs
+    entry = re.sub('_+|=+','', entry)       # Removes underscore and equal signs
     entry = re.sub('\.+','', entry)         # Removes dots
-    entry = re.sub(r'--|\\|\/|\|','', entry)# Removes double dash, slash, backslash and pipe
+    entry = re.sub(r'--+|\\|\/|\|','', entry)# Removes double dash, slash, backslash and pipe
     entry = re.sub('\W_',' ', entry)        # removes specials characters and leaves only words
     entry = re.sub("\S*\d\S*"," ", entry)   # removes numbers and words concatenated with numbers IE h4ck3r. Removes road names such as BR-381.
     entry = re.sub("\S*@\S*\s?"," ", entry) # removes emails and mentions (words with @)
     entry = re.sub(r'http\S+', '', entry)   # removes URLs with http
     entry = re.sub(r'www\S+', '', entry)    # removes URLs with www
+
+    entry = " ".join(w for w,p in nltk.pos_tag(nltk.wordpunct_tokenize(entry)) \
+                    if w.lower() in words or not w.isalpha() \
+                    and is_noun(p))
     
-        
     listOfTokens = word_tokenize(entry)
     twoLetterWord = two_letters(listOfTokens)
 
     listOfTokens = remove_words(listOfTokens, stopwords)
     listOfTokens = remove_words(listOfTokens, other_words)
     
+    
     listOfTokens = apply_lemmatizer(listOfTokens, param_lemmatizer)
-    listOfTokens = apply_stemming(listOfTokens, param_stemmer)
+    # listOfTokens = apply_stemming(listOfTokens, param_stemmer)
     listOfTokens = remove_words(listOfTokens, twoLetterWord)
     listOfTokens = remove_words(listOfTokens, other_words)
 
